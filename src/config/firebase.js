@@ -1,7 +1,7 @@
 const admin = require("firebase-admin");
 const serviceAccount = require("../../serviceAccountKey.json");
 
-let db; 
+let db;
 
 const initializeFirebase = () => {
     if (!admin.apps.length) {
@@ -9,9 +9,13 @@ const initializeFirebase = () => {
             credential: admin.credential.cert(serviceAccount),
         });
 
-        db = admin.firestore(); 
-        console.log("Firebase Admin initialized");
+        // 👇 CONNECT TO YOUR REAL DATABASE
+        db = admin.firestore({ databaseId: "advertise" });
+
+        console.log("Firebase Admin initialized with database: advertise");
     }
 };
 
-module.exports = { admin, initializeFirebase, getDb: () => db };
+const getDb = () => db;
+
+module.exports = { admin, initializeFirebase, getDb };
