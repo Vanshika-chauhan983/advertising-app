@@ -22,6 +22,10 @@ app.get("/", (req, res) => {
   res.send("Advertising App Backend is Running");
 });
 
+app.post("/api/test", (req, res) => {
+  res.json({ success: true });
+});
+
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
