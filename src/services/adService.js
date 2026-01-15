@@ -1,9 +1,9 @@
 const { getDb } = require('../config/firebase');
 const walletService = require('./walletService');
 
-const db = getDb();
-
 exports.createAd = async (adData) => {
+    const db = getDb(); 
+
     const adRef = db.collection('ads').doc();
 
     const newAd = {
@@ -13,7 +13,7 @@ exports.createAd = async (adData) => {
         mediaUrl: adData.mediaUrl,
         mediaType: adData.mediaType,
         pointReward: adData.pointReward,
-        timerDuration: adData.timerDuration || 15, 
+        timerDuration: adData.timerDuration || 15,
         createdAt: new Date().toISOString(),
         active: true
     };
@@ -23,6 +23,8 @@ exports.createAd = async (adData) => {
 };
 
 exports.fetchAds = async () => {
+    const db = getDb(); 
+
     const snapshot = await db
         .collection('ads')
         .where('active', '==', true)
@@ -35,6 +37,8 @@ exports.fetchAds = async () => {
 };
 
 exports.markAdComplete = async (userId, adId) => {
+    const db = getDb(); 
+
     const adDoc = await db.collection('ads').doc(adId).get();
 
     if (!adDoc.exists) {
@@ -44,7 +48,7 @@ exports.markAdComplete = async (userId, adId) => {
     const adData = adDoc.data();
     const reward = adData.pointReward || 0;
 
-    // Record view
+    // Save view
     await db.collection('ad_views').add({
         userId,
         adId,
@@ -56,8 +60,12 @@ exports.markAdComplete = async (userId, adId) => {
     const newBalance = await walletService.addPoints(
         userId,
         reward,
-        `Watched Ad: ${adData.title || adId}`
+        `Watched Ad: ${adData.title}`
     );
 
-    return { success: true, reward, newBalance };
+    return {
+        success: true,
+        reward,
+        newBalance
+    };
 };
