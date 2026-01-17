@@ -24,6 +24,31 @@ exports.createAd = async (req, res) => {
             });
         }
 
+        // Validate numeric fields to prevent negative values
+        if (adData.timerDuration !== undefined && (isNaN(adData.timerDuration) || adData.timerDuration <= 0)) {
+            return res.status(400).json({
+                error: "Timer duration must be a positive number"
+            });
+        }
+
+        if (adData.pointReward !== undefined && (isNaN(adData.pointReward) || adData.pointReward <= 0)) {
+            return res.status(400).json({
+                error: "Point reward must be a positive number"
+            });
+        }
+
+        if (adData.budget !== undefined && (isNaN(adData.budget) || adData.budget <= 0)) {
+            return res.status(400).json({
+                error: "Budget must be a positive number"
+            });
+        }
+
+        if (adData.dailyCap !== undefined && (isNaN(adData.dailyCap) || adData.dailyCap <= 0)) {
+            return res.status(400).json({
+                error: "Daily cap must be a positive number"
+            });
+        }
+
         const newAd = await adService.createAd(adData);
         res.status(201).json(newAd);
 
