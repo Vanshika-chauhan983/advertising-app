@@ -40,6 +40,21 @@ exports.fetchAds = async () => {
 exports.markAdComplete = async (userId, adId) => {
     const db = getDb();
 
+    if (!adId || typeof adId !== 'string') {
+        throw new Error('Invalid adId');
+    }
+
+    // Loophole Fix: Check if user has already viewed this ad
+    const existingView = await db.collection('ad_views')
+        .where('userId', '==', userId)
+        .where('adId', '==', adId)
+        .limit(1)
+        .get();
+
+    if (!existingView.empty) {
+        throw new Error('Reward already claimed for this advertisement');
+    }
+
     const adDoc = await db.collection('ads').doc(adId).get();
 
     if (!adDoc.exists) {
@@ -49,31 +64,45 @@ exports.markAdComplete = async (userId, adId) => {
     const adData = adDoc.data();
     const reward = adData.pointReward || 0;
 
-    // Save view
-    await db.collection('ad_views').add({
-        userId,
-        adId,
-        timestamp: new Date().toISOString(),
-        reward
+    // Use a transaction to ensure atomic view logging and wallet update
+    return await db.runTransaction(async (t) => {
+        // Double check view in transaction for absolute safety
+        const viewCheck = await t.get(db.collection('ad_views')
+            .where('userId', '==', userId)
+            .where('adId', '==', adId)
+            .limit(1));
+
+        if (!viewCheck.empty) {
+            throw new Error('Reward already claimed');
+        }
+
+        // Save view
+        const viewRef = db.collection('ad_views').doc();
+        t.set(viewRef, {
+            userId,
+            adId,
+            timestamp: new Date().toISOString(),
+            reward
+        });
+
+        // Increment Ad viewCount
+        t.update(db.collection('ads').doc(adId), {
+            viewCount: admin.firestore.FieldValue.increment(1)
+        });
+
+        // Update wallet
+        const newBalance = await walletService.addPoints(
+            userId,
+            reward,
+            `Watched Ad: ${adData.title}`
+        );
+
+        return {
+            success: true,
+            reward,
+            newBalance
+        };
     });
-
-    // Increment Ad viewCount
-    await db.collection('ads').doc(adId).update({
-        viewCount: admin.firestore.FieldValue.increment(1)
-    });
-
-    // Update wallet
-    const newBalance = await walletService.addPoints(
-        userId,
-        reward,
-        `Watched Ad: ${adData.title}`
-    );
-
-    return {
-        success: true,
-        reward,
-        newBalance
-    };
 };
 
 exports.getDashboardStats = async () => {
@@ -87,10 +116,28 @@ exports.getDashboardStats = async () => {
     const totalViews = viewsSnapshot.size;
     const totalUsers = usersSnapshot.size;
 
-    // Calculate total earnings (sum of all pointRewards in ad_views)
+    // Calculate total earnings and real time-series data
     let totalEarnings = 0;
+    const viewsByDay = [
+        { day: 'Mon', views: 0 },
+        { day: 'Tue', views: 0 },
+        { day: 'Wed', views: 0 },
+        { day: 'Thu', views: 0 },
+        { day: 'Fri', views: 0 },
+        { day: 'Sat', views: 0 },
+        { day: 'Sun', views: 0 }
+    ];
+
     viewsSnapshot.forEach(doc => {
-        totalEarnings += (doc.data().reward || 0);
+        const data = doc.data();
+        totalEarnings += (data.reward || 0);
+
+        if (data.timestamp) {
+            const date = new Date(data.timestamp);
+            const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+            const dayObj = viewsByDay.find(d => d.day === dayName);
+            if (dayObj) dayObj.views++;
+        }
     });
 
     return {
@@ -99,15 +146,6 @@ exports.getDashboardStats = async () => {
         totalUsers,
         totalEarnings,
         activeCampaigns: adsSnapshot.docs.filter(doc => doc.data().active).length,
-        // Mocking some time-series data for the chart based on real view counts
-        viewsByDay: [
-            { day: 'Mon', views: Math.floor(totalViews * 0.1) },
-            { day: 'Tue', views: Math.floor(totalViews * 0.15) },
-            { day: 'Wed', views: Math.floor(totalViews * 0.12) },
-            { day: 'Thu', views: Math.floor(totalViews * 0.18) },
-            { day: 'Fri', views: Math.floor(totalViews * 0.2) },
-            { day: 'Sat', views: Math.floor(totalViews * 0.15) },
-            { day: 'Sun', views: Math.floor(totalViews * 0.1) }
-        ]
+        viewsByDay
     };
 };

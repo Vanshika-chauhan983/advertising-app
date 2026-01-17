@@ -2,10 +2,18 @@ const adService = require('../services/adService');
 
 exports.createAd = async (req, res) => {
     try {
-        if (req.user.role !== "admin") {
-            return res.status(403).json({ 
-                error: "Forbidden: Only admin can create ads" 
-            });
+        // Compatibility check: check req.admin (from verifyAdmin) or req.user (from verifyToken)
+        const user = req.admin || req.user;
+
+        if (!user || user.role !== "admin") {
+            // Check if role is in user document if not in token
+            const db = require('../config/firebase').getDb();
+            const userDoc = await db.collection('users').doc(user.uid).get();
+            if (!userDoc.exists || userDoc.data().role !== "admin") {
+                return res.status(403).json({
+                    error: "Forbidden: Only admin can create ads"
+                });
+            }
         }
 
         const adData = req.body;
@@ -27,7 +35,8 @@ exports.createAd = async (req, res) => {
 
 exports.getAdFeed = async (req, res) => {
     try {
-        const ads = await adService.fetchAds(req.user.uid);
+        const userId = req.user ? req.user.uid : null;
+        const ads = await adService.fetchAds(userId);
         res.status(200).json(ads);
 
     } catch (error) {
@@ -39,15 +48,16 @@ exports.getAdFeed = async (req, res) => {
 exports.completeAd = async (req, res) => {
     try {
         const { adId } = req.body;
+        const userId = req.user ? req.user.uid : null;
 
-        if (!adId) {
+        if (!adId || !userId) {
             return res.status(400).json({
-                error: "adId is required"
+                error: "adId and authentication are required"
             });
         }
 
         const result = await adService.markAdComplete(
-            req.user.uid,
+            userId,
             adId
         );
 
@@ -55,6 +65,16 @@ exports.completeAd = async (req, res) => {
 
     } catch (error) {
         console.error("Complete Ad Error:", error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.getStats = async (req, res) => {
+    try {
+        const stats = await adService.getDashboardStats();
+        res.status(200).json(stats);
+    } catch (error) {
+        console.error("Get Stats Error:", error);
         res.status(500).json({ error: error.message });
     }
 };
