@@ -1,11 +1,12 @@
 const { Router } = require('express');
 const adController = require('../controllers/adController');
-const verifyToken = require('../middleware/authMiddleware');
+const { verifyToken, verifyAdmin } = require('../middleware/authMiddleware');
 
 const router = Router();
 
 router.get('/feed', verifyToken, adController.getAdFeed);
 router.post('/complete', verifyToken, adController.completeAd);
-router.post('/', verifyToken, adController.createAd); // TODO: Add admin check
+router.post('/', verifyAdmin, adController.createAd);
+router.get('/stats', verifyAdmin, adController.getStats);
 
 module.exports = router;
