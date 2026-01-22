@@ -3,12 +3,7 @@ const walletService = require('../services/walletService');
 exports.getBalance = async (req, res) => {
     try {
         const balance = await walletService.getBalance(req.user.uid);
-        // Returning multiple formats to ensure frontend compatibility
-        res.status(200).json({
-            balance,
-            walletBalance: balance,
-            points: balance
-        });
+        res.status(200).json({balance});
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
