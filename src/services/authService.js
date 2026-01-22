@@ -14,7 +14,7 @@ exports.loginWithToken = async (decodedToken) => {
             email: email || null,
             createdAt: new Date().toISOString(),
             walletBalance: 0,
-            role: "user", 
+            role: "user",
             isBlocked: false
         };
 
@@ -62,9 +62,8 @@ exports.updateUserStatus = async (uid, isBlocked) => {
     return { success: true };
 };
 
-/**
- * Make user ADMIN (manual or super-admin only)
- */
+// Make user ADMIN (manual or super-admin only)
+
 exports.makeAdmin = async (uid) => {
     const db = getDb();
 
