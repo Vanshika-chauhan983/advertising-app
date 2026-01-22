@@ -7,6 +7,7 @@ const router = Router();
 router.get('/feed', verifyToken, adController.getAdFeed);
 router.post('/complete', verifyToken, adController.completeAd);
 router.post('/', verifyAdmin, adController.createAd);
+router.patch('/:id/status', verifyAdmin, adController.toggleAdStatus);
 router.get('/stats', verifyAdmin, adController.getStats);
 
 module.exports = router;

@@ -23,18 +23,32 @@ exports.createAd = async (adData) => {
     return newAd;
 };
 
-exports.fetchAds = async () => {
+exports.fetchAds = async (isAdmin = false) => {
     const db = getDb();
 
-    const snapshot = await db
-        .collection('ads')
-        .where('active', '==', true)
-        .limit(20)
-        .get();
+    let query = db.collection('ads');
+
+    // Only filter by active if NOT admin
+    if (!isAdmin) {
+        query = query.where('active', '==', true);
+    }
+
+    const snapshot = await query.limit(50).get();
 
     if (snapshot.empty) return [];
 
     return snapshot.docs.map(doc => doc.data());
+};
+
+exports.updateAdStatus = async (adId, isActive) => {
+    const db = getDb();
+    const adRef = db.collection('ads').doc(adId);
+
+    await adRef.update({
+        active: isActive
+    });
+
+    return { id: adId, active: isActive };
 };
 
 exports.markAdComplete = async (userId, adId) => {

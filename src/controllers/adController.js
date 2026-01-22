@@ -61,11 +61,32 @@ exports.createAd = async (req, res) => {
 exports.getAdFeed = async (req, res) => {
     try {
         const userId = req.user ? req.user.uid : null;
-        const ads = await adService.fetchAds(userId);
+        // Check if the request comes from an admin (req.admin is set by verifyAdmin middleware)
+        // OR if the user has admin role in their token/profile
+        const isAdmin = !!req.admin;
+
+        const ads = await adService.fetchAds(isAdmin);
         res.status(200).json(ads);
 
     } catch (error) {
         console.error("Fetch Ads Error:", error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.toggleAdStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { active } = req.body;
+
+        if (typeof active !== 'boolean') {
+            return res.status(400).json({ error: "Active status must be a boolean" });
+        }
+
+        const result = await adService.updateAdStatus(id, active);
+        res.status(200).json(result);
+    } catch (error) {
+        console.error("Toggle Status Error:", error);
         res.status(500).json({ error: error.message });
     }
 };
